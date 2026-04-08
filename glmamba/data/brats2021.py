@@ -130,9 +130,9 @@ class BraTS2021SliceDataset(Dataset[dict[str, torch.Tensor]]):
         t_img = nib.load(str(t_path))
         r_img = nib.load(str(r_path))
 
-        # Use proxy access to avoid loading full volume eagerly
-        hr_np = np.asarray(t_img.dataobj[:, :, z], dtype=np.float32)
-        ref_np = np.asarray(r_img.dataobj[:, :, z], dtype=np.float32)
+        # Use proxy access to avoid loading full volume eagerly; copy so array is writable (avoids PyTorch warning)
+        hr_np = np.asarray(t_img.dataobj[:, :, z], dtype=np.float32).copy()
+        ref_np = np.asarray(r_img.dataobj[:, :, z], dtype=np.float32).copy()
 
         hr = torch.from_numpy(hr_np)
         ref = torch.from_numpy(ref_np)

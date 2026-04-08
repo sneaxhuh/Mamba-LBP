@@ -37,8 +37,8 @@ class GLMamba(nn.Module):
         self.embed_lr = PatchEmbed2x2(cfg.in_ch, cfg.channels)
         self.embed_ref = PatchEmbed2x2(cfg.in_ch, cfg.channels)
 
-        self.g_mamba = nn.Sequential(*[MambaBlock2D(cfg.channels) for _ in range(cfg.n_blocks)])
-        self.l_mamba = nn.Sequential(*[LocalMamba2D(cfg.channels) for _ in range(cfg.n_blocks)])
+        self.g_mamba = nn.ModuleList([MambaBlock2D(cfg.channels) for _ in range(cfg.n_blocks)])
+        self.l_mamba = nn.ModuleList([LocalMamba2D(cfg.channels) for _ in range(cfg.n_blocks)])
 
         self.g_deform = nn.Sequential(*[DeformBlock(cfg.channels) for _ in range(cfg.n_blocks)])
         self.l_deform = nn.Sequential(*[DeformBlock(cfg.channels) for _ in range(cfg.n_blocks)])
@@ -73,12 +73,16 @@ class GLMamba(nn.Module):
         f_ref = self.embed_ref(ref)   # (B,C,H/2,W/2)
 
         # Global branch (LR): mamba + deform
-        f_lr_m = self.g_mamba(f_lr)
+        f_lr_m = f_lr
+        for i, blk in enumerate(self.g_mamba):
+            f_lr_m = blk(f_lr_m, block_idx=i)
         f_lr_d = self.g_deform(f_lr)
         f_lr_mod = self.mod_g(f_lr_d, f_lr_m)
 
         # Local branch (Ref): local mamba + deform
-        f_ref_m = self.l_mamba(f_ref)
+        f_ref_m = f_ref
+        for i, blk in enumerate(self.l_mamba):
+            f_ref_m = blk(f_ref_m, block_idx=i)
         f_ref_d = self.l_deform(f_ref)
         f_ref_mod = self.mod_l(f_ref_d, f_ref_m)
 

@@ -1,30 +1,25 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=glmamba-eval
 #SBATCH --partition=gpu
+#SBATCH --account=iitr
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
 #SBATCH --gres=gpu:1
-#SBATCH -A iitr
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
 #SBATCH --time=02:00:00
-#SBATCH --output=logs/%x.%j.out
-#SBATCH --error=logs/%x.%j.err
+#SBATCH --output=logs/glmamba-eval.%j.out
 
 set -euo pipefail
 
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p logs
 
-PYTHON="./.venv/bin/python"
-if [[ ! -x "$PYTHON" ]]; then
-  PYTHON="python3"
-fi
+module purge
+module load cuda/11.6
+module load python/python3.10
+source "$HOME/anaconda3/etc/profile.d/conda.sh"
+conda activate glmamba
 
-# Required:
-#   --data-root: BraTS2021 root
-#   --test-subjects: text file with subject IDs
-#   --checkpoint: path to best_psnr.pt or last.pt
-
-srun "$PYTHON" -m glmamba.eval \
+srun python -m glmamba.eval \
   --data-root "/scratch/$USER/brats2021" \
   --test-subjects "/scratch/$USER/glmamba_runs/run_001/val_subjects.txt" \
   --scale 2 \

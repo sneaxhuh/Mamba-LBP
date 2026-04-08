@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=glmamba-train
 #SBATCH --partition=gpu
+#SBATCH --account=iitr
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=8
 #SBATCH --gres=gpu:1
-#SBATCH -A iitr
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=24:00:00
-#SBATCH --output=logs/%x.%j.out
-#SBATCH --error=logs/%x.%j.err
+#SBATCH --time=00:05:00
+#SBATCH --output=logs/glmamba-train.%j.out
+#SBATCH --error=logs/glmamba-train.%j.err
 
 set -euo pipefail
 
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p logs
 
-# Load Python module on compute node
 module purge
+module load cuda/11.6
 module load python/python3.10
 
-# Activate virtualenv (important!)
-source .venv/bin/activate
+source "$HOME/anaconda3/etc/profile.d/conda.sh"
+conda activate glmamba
 
 srun python -m glmamba.train \
   --data-root "/scratch/$USER/brats2021" \
@@ -27,6 +27,6 @@ srun python -m glmamba.train \
   --scale 2 \
   --epochs 50 \
   --batch-size 2 \
-  --num-workers 4 \
+  --num-workers 8 \
   --lr 2e-4 \
   --amp
