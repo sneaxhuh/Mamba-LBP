@@ -325,11 +325,13 @@ def cross_scan_fn(x: torch.Tensor, in_channel_first=True, out_channel_first=True
 def cross_merge_fn(y: torch.Tensor, in_channel_first=True, out_channel_first=True, one_by_one=False, scans=0, force_torch=False):
     return CrossMergeF.apply(y, in_channel_first, out_channel_first, one_by_one, scans)
 
-WITH_SELECTIVESCAN_MAMBA = True
 try:
     import selective_scan_cuda
-except ImportError:
-    WITH_SELECTIVESCAN_MAMBA = False
+except ImportError as e:
+    raise ImportError(
+        "selective_scan_cuda is required. Install/build a CUDA selective-scan backend "
+        "(e.g., mamba-ssm) in your environment."
+    ) from e
 
 
 def selective_scan_torch(
@@ -383,7 +385,7 @@ class SelectiveScanCuda(torch.autograd.Function):
     @torch.cuda.amp.custom_fwd
     def forward(ctx, u, delta, A, B, C, D=None, delta_bias=None, delta_softplus=False, oflex=True, backend=None):
         ctx.delta_softplus = delta_softplus
-        backend = "mamba" if WITH_SELECTIVESCAN_MAMBA and (backend is None) else backend
+        backend = "mamba" if (backend is None) else backend
         ctx.backend = backend
         if backend == "oflex":
             raise NotImplementedError("selective_scan backend 'oflex' is not included in this vendored module")
@@ -420,8 +422,9 @@ def selective_scan_fn(
 ):
     if backend in ("oflex", "core"):
         backend = "mamba"
-    fn = selective_scan_torch if backend == "torch" or (not WITH_SELECTIVESCAN_MAMBA) else SelectiveScanCuda.apply
-    return fn(u, delta, A, B, C, D, delta_bias, delta_softplus, oflex, backend)
+    if backend == "torch":
+        raise RuntimeError("selective_scan backend 'torch' is disabled; selective_scan_cuda is required.")
+    return SelectiveScanCuda.apply(u, delta, A, B, C, D, delta_bias, delta_softplus, oflex, backend)
 
 
 class Linear(nn.Linear):

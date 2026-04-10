@@ -6,13 +6,18 @@
 #SBATCH --ntasks-per-node=8
 #SBATCH --gres=gpu:1
 #SBATCH --time=00:05:00
-#SBATCH --output=logs/glmamba-train.%j.out
-#SBATCH --error=logs/glmamba-train.%j.err
+#SBATCH --output=glmamba-train.%j.out
+#SBATCH --error=glmamba-train.%j.err
+#SBATCH --export=ALL
 
 set -euo pipefail
 
-cd "$SLURM_SUBMIT_DIR"
-mkdir -p logs
+# Always run from the repo root so `python -m glmamba...` works even if the job
+# was submitted from inside `scripts/`.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 
 module purge
 module load cuda/11.6
@@ -21,7 +26,7 @@ module load python/python3.10
 source "$HOME/anaconda3/etc/profile.d/conda.sh"
 conda activate glmamba
 
-srun python -m glmamba.train \
+srun --export=ALL python -m glmamba.train_lightning \
   --data-root "/scratch/$USER/brats2021" \
   --out-dir "/scratch/$USER/glmamba_runs/run_001" \
   --scale 2 \

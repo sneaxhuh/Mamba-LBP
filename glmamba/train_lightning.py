@@ -34,6 +34,25 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--weight-decay", type=float, default=0.0)
     p.add_argument("--amp", action="store_true")
 
+    p.add_argument(
+        "--devices",
+        type=int,
+        default=1,
+        help="GPUs per node. For multi-GPU, launch with torchrun and set this to GPUs per node.",
+    )
+    p.add_argument(
+        "--num-nodes",
+        type=int,
+        default=1,
+        help="Number of nodes. For multi-node, launch with torchrun and set this to total nodes.",
+    )
+    p.add_argument(
+        "--strategy",
+        type=str,
+        default="ddp",
+        help="Lightning strategy (e.g. ddp). Ignored on CPU.",
+    )
+
     p.add_argument("--out-dir", type=str, required=True)
     p.add_argument("--resume", type=str, default=None, help="Path to Lightning checkpoint to resume from.")
 
@@ -111,15 +130,18 @@ def main() -> None:
     )
 
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
-    devices = 1
-    precision = "16-mixed" if (args.amp and torch.cuda.is_available()) else "32"
+    devices = args.devices if accelerator == "gpu" else 1
+    precision = "16-mixed" if (args.amp and accelerator == "gpu") else "32"
+    strategy = args.strategy if (accelerator == "gpu" and devices > 1) else "auto"
 
     trainer = pl.Trainer(
         default_root_dir=str(out_dir),
         max_epochs=args.epochs,
         accelerator=accelerator,
         devices=devices,
+        num_nodes=args.num_nodes,
         precision=precision,
+        strategy=strategy,
         deterministic=args.deterministic,
         callbacks=[ckpt_best, ckpt_last],
         log_every_n_steps=10,
